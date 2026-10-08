@@ -95,6 +95,7 @@ impl Pairing {
 
 const RECONNECT_EVERY: Duration = Duration::from_secs(4);
 const NEARBY_TTL: Duration = Duration::from_secs(12);
+const MAX_UNTRUSTED: usize = 8;
 
 impl Engine {
     pub(crate) fn send_to(&self, peer: &str, msg: Msg) {
@@ -150,6 +151,10 @@ impl Engine {
             return; // dialled ourselves
         }
         let trusted = self.trust.is_trusted(&h.remote_static);
+        // Unpaired devices may only connect to pair; don't let them pile up connections.
+        if !trusted && self.conns.values().filter(|c| !c.trusted).count() >= MAX_UNTRUSTED {
+            return;
+        }
         if let Intent::Trusted(id) = &intent {
             if *id != remote_id || !trusted {
                 tracing::warn!("device at {} is not the paired device we expected", h.addr);
